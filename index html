@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAFT — Master Dashboard (v5.6)</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* 🎨 THE ARCHITECT'S PAINT: FULL V4 RESTORATION */
+        :root {
+          --bg:#f5f7fa; --bg2:#ffffff; --bg3:#eef1f6; --border:#e4e7ef;
+          --text:#0c0e12; --text2:#435068; --text3:#8292a8;
+          --green:#0a9651; --amber:#b86e00; --red:#c91c1c;
+          --navy:#112148; --topbar-bg:#0a1428; --logo-amber:#f5a623;
+          --r-sm:6px; --r-md:10px;
+          --body:'Instrument Sans', sans-serif; --mono:'DM Mono', monospace; --display:'Bebas Neue', sans-serif;
+        }
+
+        body { background:var(--bg); color:var(--text); font-family:var(--body); margin:0; line-height:1.55; }
+        .topbar { background:var(--topbar-bg); min-height:64px; display:flex; align-items:center; padding:0 32px; box-shadow:0 4px 24px rgba(0,0,0,.28); color:#fff; position:sticky; top:0; z-index:100; }
+        .tb-logo { font-family:var(--display); font-size:26px; letter-spacing:3px; }
+        .tabs { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 32px; display:flex; position:sticky; top:64px; z-index:90; }
+        .tab { padding:15px 22px; font-weight:600; color:var(--text3); cursor:pointer; border:none; background:none; border-bottom:2px solid transparent; text-transform:uppercase; font-size:12px; }
+        .tab.active { color:var(--navy); border-bottom-color:var(--navy); }
+
+        .content { padding:24px 32px; max-width:1400px; margin:0 auto; }
+        
+        /* 🛰️ COCKPIT BAR (Restored from V4) */
+        .cockpit-bar { display:flex; gap:1px; background:var(--navy); border-radius:var(--r-md); overflow:hidden; margin-bottom:20px; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
+        .instrument { flex:1; padding:18px; color:#fff; border-top:3px solid transparent; text-align:center; }
+        .inst-val { font-family:var(--display); font-size:36px; line-height:1; }
+        .inst-lbl { font-family:var(--mono); font-size:9px; text-transform:uppercase; opacity:0.5; margin-top:4px; letter-spacing:1px; }
+        .i-total { border-color:#3b82f6; } .i-red { border-color:var(--red); } .i-amber { border-color:var(--amber); } .i-green { border-color:var(--green); }
+
+        /* 📋 TABLE & TRIAGE SYSTEM (Restored from V4) */
+        .table-card { background:#fff; border-radius:var(--r-md); border:1px solid var(--border); overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.05); }
+        table { width:100%; border-collapse:collapse; }
+        thead th { background:var(--bg3); padding:12px 14px; text-align:left; font-family:var(--mono); font-size:11px; color:var(--text2); text-transform:uppercase; border-bottom:1px solid var(--border); }
+        td { padding:12px 14px; border-bottom:1px solid var(--border); font-size:13px; }
+        .mono { font-family:var(--mono); }
+        .data-row { cursor:pointer; }
+        .data-row:hover { background:var(--bg3); }
+        
+        /* 🏷️ STATUS BADGES */
+        .sbadge { display:inline-flex; align-items:center; gap:6px; font-weight:700; padding:2px 8px; border-radius:4px; font-size:11px; text-transform:uppercase; }
+        .sb-red { background:#fff1f0; color:var(--red); border:1px solid #f8a8a8; }
+        .sb-green { background:#edfaf3; color:var(--green); border:1px solid #9de8c0; }
+        
+        /* 📂 EXPANDED TRIAGE BAY */
+        .triage-bay { background:var(--bg3); padding:24px; border-bottom:2px solid var(--border); border-top:1px solid var(--border); display:grid; grid-template-columns: 1fr 1fr; gap:24px; }
+        .triage-pane-label { font-family:var(--mono); font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; border-bottom:1px solid var(--border); padding-bottom:6px; }
+        .mat-list { list-style:none; padding:0; font-size:12px; }
+        .mat-item { background:#fff; padding:8px 12px; border-radius:6px; border:1px solid var(--border); margin-bottom:6px; display:flex; justify-content:space-between; }
+
+        .rl-cta { background:var(--navy); color:#fff; padding:14px 32px; border-radius:6px; cursor:pointer; font-weight:600; margin-top:24px; display:inline-block; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState } = React;
+
+        function App() {
+            const [activeTab, setActiveTab] = useState('today');
+            const [results, setResults] = useState([]);
+            const [expandedDoc, setExpandedDoc] = useState(null);
+            const [loading, setLoading] = useState(false);
+
+            const handleFile = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                setLoading(true);
+
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    const wb = XLSX.read(evt.target.result, { type: 'binary' });
+                    const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                    
+                    // Logic: Auto-match ZCRs to ZCDs by Plot
+                    const plotMap = new Map();
+                    data.forEach(row => {
+                        const pKey = row['Plot Num'] || "—";
+                        if (!plotMap.has(pKey)) plotMap.set(pKey, { zcds: new Set(), zcrs: new Map() });
+                        if (String(row['SaTy']).includes('ZCD')) plotMap.get(pKey).zcds.add(String(row['Material']).trim());
+                        if (String(row['SaTy']).includes('ZCR')) {
+                            const dId = row['Sales Doc.'];
+                            if (!plotMap.get(pKey).zcrs.has(dId)) plotMap.get(pKey).zcrs.set(dId, []);
+                            plotMap.get(pKey).zcrs.get(dId).push(row);
+                        }
+                    });
+
+                    const triage = [];
+                    plotMap.forEach((pData, plot) => {
+                        pData.zcrs.forEach((lines, doc) => {
+                            const matchCount = lines.filter(l => pData.zcds.has(String(l['Material']).trim())).length;
+                            const status = matchCount === lines.length ? 'GREEN' : 'RED';
+                            triage.push({ doc, plot, name: lines[0]['Name 1'], status, lines, matchCount });
+                        });
+                    });
+
+                    setResults(triage);
+                    setLoading(false);
+                };
+                reader.readAsBinaryString(file);
+            };
+
+            const stats = {
+                total: results.length,
+                red: results.filter(r => r.status === 'RED').length,
+                green: results.filter(r => r.status === 'GREEN').length
+            };
+
+            return (
+                <div className="raft-app">
+                    <header className="topbar">
+                        <div className="tb-logo">R<span style={{color:'#f5a623'}}>A</span>FT</div>
+                        <div style={{marginLeft:'20px', fontSize:'10px', fontFamily:'monospace', opacity:0.5}}>V5.6 MASTER EDITION</div>
+                    </header>
+                    <nav className="tabs">
+                        {['today', 'calendar', 'search', 'intel'].map(t => (
+                            <button key={t} className={`tab ${activeTab === t ? 'active' : ''}`} onClick={() => setActiveTab(t)}>
+                                {t}
+                            </button>
+                        ))}
+                    </nav>
+                    <main className="content">
+                        {results.length === 0 ? (
+                            <div style={{textAlign:'center', padding:'100px'}}>
+                                <div style={{fontSize:'64px', fontFamily:'var(--display)', color:'var(--navy)'}}>RAFT</div>
+                                <div style={{fontFamily:'var(--mono)', fontSize:'12px', color:'var(--text3)', letterSpacing:'2px'}}>REMEDIAL AUDIT & FLAG TOOL</div>
+                                <label className="rl-cta">
+                                    {loading ? 'CRUNCHING SAP DATA...' : 'UPLOAD ZCR REPORT'}
+                                    <input type="file" onChange={handleFile} hidden />
+                                </label>
+                            </div>
+                        ) : (
+                            <div>
+                                <div className="cockpit-bar">
+                                    <div className="instrument i-total"><div className="inst-val">{stats.total}</div><div className="inst-lbl">Today's Orders</div></div>
+                                    <div className="instrument i-red"><div className="inst-val">{stats.red}</div><div className="inst-lbl">Blocked (Red)</div></div>
+                                    <div className="instrument i-green"><div className="inst-val">{stats.green}</div><div className="inst-lbl">Clear (Green)</div></div>
+                                </div>
+                                <div className="table-card">
+                                    <table>
+                                        <thead><tr><th>Status</th><th>Doc</th><th>Account</th><th>Plot</th></tr></thead>
+                                        <tbody>
+                                            {results.map(r => (
+                                                <React.Fragment key={r.doc}>
+                                                    <tr className="data-row" onClick={() => setExpandedDoc(expandedDoc === r.doc ? null : r.doc)}>
+                                                        <td><span className={`sbadge ${r.status === 'RED' ? 'sb-red' : 'sb-green'}`}>{r.status}</span></td>
+                                                        <td className="mono">{r.doc}</td>
+                                                        <td>{r.name}</td>
+                                                        <td className="mono">{r.plot}</td>
+                                                    </tr>
+                                                    {expandedDoc === r.doc && (
+                                                        <tr><td colSpan="4">
+                                                            <div className="triage-bay">
+                                                                <div>
+                                                                    <div className="triage-pane-label">Rule Trail</div>
+                                                                    <div style={{fontSize:'13px', fontWeight:600, color: r.status==='RED' ? 'var(--red)' : 'var(--green)'}}>
+                                                                        {r.status === 'RED' ? '✕ Material mismatch detected against ZCD' : '✓ All materials match original kitchen spec'}
+                                                                    </div>
+                                                                    <p style={{fontSize:'12px', color:'var(--text2)'}}>Matched {r.matchCount} of {r.lines.length} lines on this order.</p>
+                                                                </div>
+                                                                <div>
+                                                                    <div className="triage-pane-label">Order Materials</div>
+                                                                    <div className="mat-list">
+                                                                        {r.lines.map((l, i) => (
+                                                                            <div key={i} className="mat-item">
+                                                                                <span className="mono">{l['Material']}</span>
+                                                                                <span style={{color:'var(--text3)'}}>{l['Material Description']}</span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </td></tr>
+                                                    )}
+                                                </React.Fragment>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+                </div>
+            );
+        }
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
