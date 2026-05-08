@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a1428">
+<meta name="description" content="Professional order and delivery management system">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RAFT">
+<link rel="manifest" href="/raft-pwa/manifest.json">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%230a1428' width='192' height='192'/><text x='50%' y='50%' font-size='120' font-weight='bold' fill='white' text-anchor='middle' dominant-baseline='central' font-family='sans-serif'>RAFT</text></svg>">
+<title>RAFT — Admin Dashboard</title>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/*
+ * RAFT Admin Dashboard — Stylesheet
+ * ─────────────────────────────────────────────────────────────────────────────
+ * § 1   Tokens & root variables        :root, body[data-theme='dark']
+ * § 2   Reset & base                   *, html, body, button, input
+ * § 3   Layout utilities               .hidden, .sr-only, .stack-gap-*, etc.
+ * § 4   Topbar                         .topbar, .tb-*, .tbl-dot
+ * § 5   Upload bar                     .upload-bar, .upload-drop, .ud-*, .us-*
+ * § 6   Notices                        .notice, .notice-stack, .notice-title
+ * § 7   Tabs                           .tabs, .tab, .tab-panel, .tab-badge
+ * § 8   Cockpit instrument bar         .cockpit-bar, .cockpit-instrument, .ci-*
+ * § 9   Panel headings                 .panel-title, .panel-eyebrow
+ * § 10  Landing / empty state          .raft-landing, .rl-*, .upload-prompt
+ * § 11  Cockpit mobile                 @media 640px, 420px
+ * § 12  Tool rail                      .tool-rail, .tr-filter-pill, .tr-search
+ * § 13  Status badges                  .sbadge, .sb-*, .decision-badge
+ * § 14  Table                          .table-wrap, thead, tbody, .data-row
+ * § 15  Triage bay (expanded row)      .triage-bay, .triage-grid, .triage-pane
+ * § 16  Meta cards & rule path         .meta-card, .mc-*, .rule-item, .mat-table
+ * § 17  Verdict box                    .verdict-box, .vbox-*
+ * § 18  Plot search panel              .search-layout, .sp-*, .plot-header
+ * § 19  Timeline                       .timeline, .tl-item, .tl-dot, .tl-signoff
+ * § 20  Command palette                .palette, .palette-input, .palette-item
+ * § 21  Account view                   .account-layout, .alp-*, .adp-*, .av-*
+ * § 22  Plot cards & sparklines        .plots-grid, .plot-card, .pc-*, .sparkline
+ * § 23  Kanban view                    .kanban-board, .kanban-col, .kanban-card
+ * § 24  Heatmap                        .heatmap-panel, .heat-*
+ * § 25  Ageing tracker                 .ageing-panel, .ageing-card, .ageing-row
+ * § 26  Sign-off & chargeable system   .sb-chargeable, .signoff-warning, .tl-signoff-*
+ * § 27  Upload bar collapse            .upload-bar.is-loaded, .signoff-status-pill
+ * § 28  Triage footer (mobile)         .triage-footer, .triage-footer-close
+ * § 29  Responsive breakpoints         @media 1100px, 900px, 640px, 420px
+ * § 30  Motion system                  @keyframes, prefers-reduced-motion
+ * § 31  Dark mode surface fixes        body[data-theme='dark'] overrides
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+:root {
+  --bg:#f5f7fa; --bg2:#ffffff; --bg3:#eef1f6; --bg4:#e8ecf3; --bg-inset:#e4e8f0;
+  --border:#e4e7ef; --border2:#cdd2de;
+  --text:#0c0e12; --text2:#435068; --text3:#8292a8;
+  --green:#0a9651; --green-bg:#edfaf3; --green-bd:#9de8c0;
+  --amber:#b86e00; --amber-bg:#fef9ed; --amber-bd:#f5d068;
+  --red:#c91c1c; --red-bg:#fff1f0; --red-bd:#f8a8a8;
+  --blue:#1d57e8; --blue-bg:#eef4ff; --blue-bd:#b8cefd;
+  --navy:#112148;
+  --mono:'DM Mono', monospace; --body:'Instrument Sans', sans-serif; --display:'Bebas Neue', sans-serif;
+  /* ── Design system tokens ── */
+  --r-sm:6px; --r-md:10px; --r-lg:16px;
+  --sh-flat:none;
+  --sh-card:0 0 0 1px var(--border);
+  --sh-overlay:0 4px 16px rgba(0,0,0,.08),0 1px 3px rgba(0,0,0,.06),0 0 0 1px var(--border);
+  --fs-xs:10px; --fs-sm:12px; --fs-md:13px; --fs-lg:15px; --fs-title:17px;
+  --topbar-bg:#0a1428;
+  --loaded-green:#22d47a;
+  --logo-amber:#f5a623;
+  --ci-green:#4ade80; --ci-amber:#fbbf24; --ci-red:#f87171;
+  --row-active-bg:#edf2ff;
+  --charge:#c45800; --charge-bg:#fff3e0; --charge-bd:#f5c087;
+  --line:var(--border); --paper:var(--bg2); --paper2:var(--bg3);
+  --r-xl:var(--r-lg); --fast:var(--t-base) var(--e-snap);
+}
+body[data-theme='dark'] {
+  --bg:#0d0e11; --bg2:#141519; --bg3:#1a1c21; --bg4:#202228;
+  --border:#26282e; --border2:#33363e; --bg-inset:#111316;
+  --text:#e4e6ec; --text2:#a8b0c0; --text3:#6a7385;
+  --green:#3dd68c; --green-bg:#0b2318; --green-bd:#1a5c3a;
+  --amber:#f5bb40; --amber-bg:#241c0c; --amber-bd:#6b4e18;
+  --red:#f87171; --red-bg:#2a1010; --red-bd:#6e2222;
+  --blue:#6ba3f8; --blue-bg:#101d33; --blue-bd:#1e3d70;
+  --navy:#d4dcf0;
+  --sh-card:0 1px 4px rgba(0,0,0,.35),0 2px 8px rgba(0,0,0,.24);
+  --sh-overlay:0 12px 40px rgba(0,0,0,.48),0 4px 12px rgba(0,0,0,.28);
+  --topbar-bg:#0a1428;
+  --loaded-green:#22d47a;
+  --logo-amber:#f5a623;
+  --ci-green:#4ade80; --ci-amber:#fbbf24; --ci-red:#f87171;
+  --row-active-bg:#edf2ff;
+  --charge:#fb923c; --charge-bg:#2d1a00; --charge-bd:#7c3a00;
+  --line:var(--border); --paper:var(--bg2); --paper2:var(--bg3);
+  --row-active-bg:#1a2340; --ci-green:#4ade80; --ci-amber:#fbbf24; --ci-red:#f87171;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+html { scroll-behavior:smooth; }
+body { background:var(--bg); color:var(--text); font-family:var(--body); font-size:13px; line-height:1.55; min-height:100vh; }
+button, input, select { font:inherit; }
+button { border:none; background:none; }
+button, select, input { outline:none; }
+button:focus-visible, select:focus-visible, input:focus-visible, .interactive:focus-visible {
+  outline:3px solid rgba(37,99,235,.25); outline-offset:2px;
+}
+.hidden { display:none !important; }
+[hidden] { display:none !important; }
+.sr-only {
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
+}
+.stack-gap-14 { display:grid; gap:14px; }
+.mb-14 { margin-bottom:14px; }
+.full-width { width:100%; }
+.section-divider { padding-top:14px; border-top:1px solid var(--border); }
+.panel-stick { height:fit-content; position:sticky; top:140px; }
+.placeholder-compact { padding:60px; }
+.topbar {
+  background:var(--topbar-bg); min-height:64px; display:flex; align-items:center; justify-content:space-between;
+  padding:0 32px; position:sticky; top:0; z-index:200;
+  box-shadow:0 1px 0 rgba(255,255,255,.05), 0 4px 24px rgba(0,0,0,.28);
+}
+.tb-brand, .tb-right { display:flex; align-items:center; gap:14px; }
+.tb-logo { font-family:var(--display); font-size:26px; letter-spacing:3px; color:#fff; line-height:1; }
+.tb-logo .amber, .amber { color:var(--logo-amber); }
+.tb-sep { width:1px; height:26px; background:rgba(255,255,255,.1); }
+.tb-title, .mono-label { font-family:var(--mono); font-size:var(--fs-xs); letter-spacing:1.2px; text-transform:uppercase; }
+.tb-title { color:rgba(255,255,255,.35); }
+.tb-date { font-family:var(--mono); font-size:var(--fs-xs); color:rgba(255,255,255,.3); letter-spacing:.4px; }
+.tb-loaded {
+  display:none; align-items:center; gap:8px;
+  border-left:2px solid var(--loaded-green); padding-left:10px;
+  font-family:var(--mono); font-size:var(--fs-xs); color:rgba(255,255,255,.55);
+}
+.tb-loaded.show { display:flex; }
+.tbl-dot { width:5px; height:5px; border-radius:50%; background:var(--loaded-green); flex-shrink:0; }
+.upload-bar {
+  background:var(--bg2); border-bottom:1px solid var(--border); padding:14px 32px; display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+}
+.upload-drop {
+  display:flex; align-items:center; gap:10px; background:var(--bg3); border:1px solid var(--border2); border-radius:var(--r-sm); padding:11px 20px;
+  cursor:pointer; transition:border-color var(--t-base) var(--e-snap), background var(--t-base) var(--e-snap); position:relative;
+}
+.upload-drop:hover, .upload-drop.hover { border-color:var(--blue); background:var(--blue-bg); }
+.upload-drop.loaded { border-color:var(--green); border-style:solid; background:var(--green-bg); }
+.upload-drop input[type="file"] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+.ud-icon { font-size:18px; }
+.ud-text { font-size:var(--fs-md); font-weight:600; color:var(--text2); }
+.ud-sub, .fb-hint, .small-mono { font-family:var(--mono); font-size:var(--fs-xs); color:var(--text3); }
+.upload-info { font-family:var(--mono); font-size:var(--fs-sm); color:var(--text3); flex:1; min-width:240px; }
+.upload-stats { display:none; gap:20px; align-items:center; flex-wrap:wrap; }
+.upload-stats.show { display:flex; }
+.us-item { text-align:center; }
+.us-val { font-family:var(--display); font-size:24px; line-height:1; }
+.us-lbl { font-family:var(--mono); font-size:var(--fs-xs); color:var(--text3); letter-spacing:.6px; text-transform:uppercase; margin-top:2px; }
+.notice-stack { display:grid; gap:10px; width:100%; }
+.notice {
+  background:var(--bg2); border:1px solid var(--border); border-left:4px solid var(--blue); border-radius:var(--r-sm); padding:10px 12px; box-shadow:var(--sh-card);
+}
+.notice.warning { border-left-color:var(--amber); background:var(--amber-bg); }
+.notice.error { border-left-color:var(--red); background:var(--red-bg); }
+.notice.success { border-left-color:var(--green); background:var(--green-bg); }
+.notice-title { font-size:var(--fs-sm); font-weight:700; margin-bottom:2px; }
+.notice-body { font-size:var(--fs-sm); color:var(--text2); }
+.tabs {
+  background:var(--bg2); border-bottom:1px solid var(--border); padding:0 32px; display:flex; gap:0; overflow:auto;
+}
+.tab {
+  padding:15px 22px; font-size:var(--fs-md); font-weight:600; color:var(--text3); cursor:pointer; border-bottom:2px solid transparent;
+  margin-bottom:-1px; transition:background var(--t-base) var(--e-snap), border-color var(--t-base) var(--e-snap), box-shadow var(--t-base) var(--e-snap); display:flex; align-items:center; gap:7px; white-space:nowrap;
+}
+.tab:hover { color:var(--text); }
+.tab.active { color:var(--navy); border-bottom-color:var(--navy); }
+.tab-badge {
+  font-family:var(--mono); font-size:9px; font-weight:700; padding:2px 6px; border-radius:999px;
+  background:var(--red-bg); color:var(--red); border:1px solid var(--red-bd);
+}
+.content { padding:24px 32px; max-width:1440px; margin:0 auto; }
+.tab-panel { display:none; }
+.tab-panel.active { display:block; }
+/* fadeIn → defined in motion system above */
+.upload-prompt, .placeholder { text-align:center; padding:64px 24px; color:var(--text3); }
+.up-icon, .ph-icon { font-size:28px; margin-bottom:16px; opacity:.3; display:block; line-height:1; }
+.up-title { font-family:var(--display); font-size:26px; letter-spacing:1.5px; color:var(--text2); margin-bottom:8px; }
+.up-sub, .ph-sub { font-family:var(--mono); font-size:var(--fs-sm); line-height:1.7; }
+.ph-title { font-size:var(--fs-lg); font-weight:600; color:var(--text2); margin-bottom:6px; }
+/* ── COCKPIT INSTRUMENT BAR ── */
+.cockpit-bar {
+  display:grid;
+  grid-template-columns: 1fr 1px 1fr 1px 1fr 1px 1fr 1px minmax(140px,auto) 1px minmax(140px,auto);
+  background:var(--navy);
+  border-radius:var(--r-md);
+  overflow:hidden;
+  margin-bottom:16px;
+  box-shadow:var(--sh-overlay);
+  position:relative;
+}
+.cockpit-bar::after {
+  content:'RAFT TRIAGE CONSOLE';
+  position:absolute; top:8px; right:14px;
+  font-family:var(--mono); font-size:8px; letter-spacing:2px;
+  color:rgba(255,255,255,.12); pointer-events:none;
+}
+.cockpit-div {
+  width:1px; background:rgba(255,255,255,.08); align-self:stretch;
+}
+.cockpit-instrument {
+  display:flex; flex-direction:column; justify-content:center;
+  padding:18px 22px; position:relative; cursor:default;
+  transition:background .15s;
+}
+.cockpit-instrument::before {
+  content:''; position:absolute; inset:0 0 auto 0; height:2px;
+  opacity:.7;
+}
+.ci-total::before { background:var(--blue); }
+.ci-green::before { background:var(--green); }
+.ci-amber::before { background:var(--amber); }
+.ci-red::before { background:var(--red); }
+.ci-date::before { background:rgba(255,255,255,.2); }
+.ci-flagged::before { background:var(--red); }
+.cockpit-instrument.ci-clickable {
+  cursor:pointer;
+}
+.cockpit-instrument.ci-clickable:hover {
+  background:rgba(255,255,255,.05);
+}
+.cockpit-instrument.ci-active {
+  background:rgba(255,255,255,.08);
+}
+.cockpit-instrument.ci-active.ci-green { background:rgba(14,163,90,.15); }
+.cockpit-instrument.ci-active.ci-amber { background:rgba(201,122,0,.15); }
+.cockpit-instrument.ci-active.ci-red   { background:rgba(212,32,32,.15); }
+.cockpit-instrument.ci-active::before { opacity:1; height:3px; }
+.ci-value {
+  font-family:var(--display); font-size:42px; line-height:1;
+  color:#fff; margin-bottom:5px; letter-spacing:1px;
+}
+.ci-label {
+  font-family:var(--mono); font-size:8px; letter-spacing:1.8px;
+  text-transform:uppercase; color:rgba(255,255,255,.38);
+}
+.ci-total .ci-value  { color:rgba(255,255,255,.9); }
+.ci-green .ci-value  { color:var(--ci-green); }
+.ci-amber .ci-value  { color:var(--ci-amber); }
+.ci-red .ci-value    { color:var(--ci-red); }
+.ci-date .ci-value   { font-size:22px; color:rgba(255,255,255,.75); letter-spacing:.5px; }
+.ci-flagged .ci-value { color:var(--ci-red); }
+.ci-flagged-pulse {
+  display:inline-block; width:6px; height:6px; border-radius:50%;
+  background:var(--ci-red); margin-left:8px; vertical-align:middle;
+  animation:pulse 1.8s ease-in-out infinite;
+}
+.ci-flagged-pulse.zero { display:none; }
+/* pulse → defined in motion system above */
+
+
+/* ── Panel heading standardisation ── */
+.panel-title {
+  font-family:var(--body); font-size:var(--fs-title); font-weight:700;
+  letter-spacing:-.2px; color:var(--text); margin-bottom:4px;
+}
+.panel-eyebrow {
+  font-family:var(--mono); font-size:var(--fs-xs); letter-spacing:1.2px;
+  text-transform:uppercase; color:var(--text3); margin-bottom:6px;
+}
+
+/* ── RAFT landing / empty state ── */
+.raft-landing {
+  display:flex; flex-direction:column; align-items:center;
+  justify-content:center; text-align:center;
+  padding:80px 32px; max-width:520px; margin:0 auto;
+  gap:0;
+}
+.rl-brand {
+  font-family:var(--display); font-size:52px; letter-spacing:6px;
+  color:var(--navy); line-height:1; margin-bottom:12px;
+}
+.rl-descriptor {
+  font-family:var(--mono); font-size:var(--fs-xs); letter-spacing:2px;
+  text-transform:uppercase; color:var(--text3); margin-bottom:28px;
+}
+.rl-body {
+  font-family:var(--body); font-size:var(--fs-sm); color:var(--text2);
+  line-height:1.75; margin-bottom:36px; max-width:420px;
+}
+.rl-action { display:flex; flex-direction:column; align-items:center; gap:12px; }
+.rl-cta {
+  display:inline-flex; align-items:center; gap:10px;
+  background:var(--navy); color:#fff;
+  font-family:var(--body); font-size:var(--fs-md); font-weight:600;
+  padding:12px 28px; border-radius:var(--r-sm);
+  cursor:pointer; transition:background var(--t-base) var(--e-snap), transform var(--t-fast) var(--e-snap);
+  letter-spacing:.2px;
+}
+.rl-cta:hover { background:#091229; transform:translateY(-1px); }
+.rl-cta:active { transform:scale(.98); }
+.rl-cta-icon {
+  font-size:16px; opacity:.7;
+}
+.rl-hint {
+  font-family:var(--mono); font-size:var(--fs-xs); color:var(--text3);
+  max-width:360px; line-height:1.6;
+}
+
+/* ── Cockpit bar mobile responsive ── */
+@media (max-width: 640px) {
+  .cockpit-bar {
+    grid-template-columns: 1fr 1px 1fr 1px 1fr;
+    grid-template-rows: auto auto;
+  }
+  /* hide the vertical dividers that fall on row 2 boundary */
+  .cockpit-bar .cockpit-div:nth-child(8),
+  .cockpit-bar .cockpit-div:nth-child(10) { display:none; }
+  .cockpit-instrument { padding:14px 12px; }
+  .ci-value { font-size:28px; }
+  .ci-label { font-size:7px; letter-spacing:1px; }
+  .ci-date .ci-value { font-size:13px; letter-spacing:0; }
+  .cockpit-bar::after { display:none; }
+}
+@media (max-width: 420px) {
+  .cockpit-bar { grid-template-columns: 1fr 1px 1fr; }
+  .cockpit-bar .cockpit-div { display:none; }
+  .cockpit-instrument { border-bottom:1px solid rgba(255,255,255,.06); }
+}
+
+/* ── TOOL RAIL ── */
+.tool-rail {
+  display:flex; align-items:center; gap:6px;
+  background:var(--bg2); border:1px solid var(--border);
+  border-radius:var(--r-md); padding:6px 8px;
+  margin-bottom:12px; box-shadow:var(--sh-card);
+}
+.tool-rail-divider {
+  width:1px; height:22px; background:var(--border2);
+  flex-shrink:0; margin:0 2px;
+}
+.tr-filter-pill {
+  display:inline-flex; align-items:center; gap:5px;
+  font-family:var(--mono); font-size:var(--fs-xs); font-weight:600;
+  padding:5px 10px; border-radius:var(--r-sm);
+  border:1px solid transparent; background:transparent;
+  color:var(--text3); cursor:pointer;
+  white-space:nowrap; line-height:1;
+}
+.tr-filter-pill:hover { color:var(--text); background:var(--bg3); border-color:var(--border2); }
+.tr-filter-pill.active { background:var(--navy); color:#fff; border-color:var(--navy); }
+.tr-filter-pill.fp-red.active  { background:var(--red);   border-color:var(--red); }
+.tr-filter-pill.fp-amber.active{ background:var(--amber); border-color:var(--amber); }
+.tr-filter-pill.fp-green.active{ background:var(--green); border-color:var(--green); }
+.tr-filter-pill .fp-dot {
+  width:6px; height:6px; border-radius:50%; flex-shrink:0;
+}
+.fp-dot-red   { background:var(--red); }
+.fp-dot-amber { background:var(--amber); }
+.fp-dot-green { background:var(--green); }
+.tr-search {
+  flex:1; min-width:180px;
+  background:var(--bg-inset); border:1px solid var(--border2);
+  border-radius:var(--r-sm); padding:6px 10px;
+  font-family:var(--body); font-size:var(--fs-sm); color:var(--text);
+  transition:border-color .12s, background .12s;
+}
+.tr-search:focus { border-color:var(--blue); background:var(--bg2); outline:none; }
+.tr-search-meta {
+  font-family:var(--mono); font-size:var(--fs-xs); color:var(--text3);
+  white-space:nowrap; padding:0 4px;
+}
+.tr-icon-btn {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:30px; height:30px; border-radius:var(--r-sm);
+  border:1px solid var(--border2); background:var(--bg3);
+  color:var(--text3); cursor:pointer; font-size:13px;
+  transition:background var(--t-fast) var(--e-snap), color var(--t-fast) var(--e-snap), border-color var(--t-fast) var(--e-snap); flex-shrink:0;
+}
+.tr-icon-btn:hover { border-color:var(--navy); color:var(--navy); background:var(--bg2); }
+.tr-icon-btn.active { background:var(--navy); color:#fff; border-color:var(--navy); }
+.tr-icon-btn[title] { position:relative; }
+.table-card, .search-panel, .search-result-panel, .account-list-panel, .account-detail-panel {
+  background:var(--bg2); border:1px solid var(--border); border-radius:var(--r-md); box-shadow:none;
+}
+.table-card { overflow:hidden; }
+.table-wrap { overflow:auto; }
+table { width:100%; border-collapse:collapse; }
+thead th {
+  background:var(--bg3); padding:9px 14px; text-align:left; font-family:var(--mono); font-size:var(--fs-xs); color:var(--text3);
+  text-transform:uppercase; letter-spacing:.6px; border-bottom:1px solid var(--border); white-space:nowrap;
+}
+tbody tr.data-row { border-bottom:1px solid var(--border); border-left:3px solid transparent; }
+tbody tr.data-row:nth-child(even) { background:var(--bg3); }
+tbody tr.data-row:last-child { border-bottom:none; }
+tbody tr.data-row:hover { background:var(--blue-bg) !important; }
+.tr-green { border-left-color:var(--green); }
+.tr-amber { border-left-color:var(--amber); }
+.tr-red   { border-left-color:var(--red); }
+td { padding:11px 14px; font-size:v
